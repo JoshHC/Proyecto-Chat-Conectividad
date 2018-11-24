@@ -38,7 +38,7 @@ function VerifyToken(req, res, next) {
     }
   }
 
-
+//Autenticacion del Token para el usuario
   router.post('/autenticacion', (req,res) =>{
     mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
       if(err) return next(createError(500))
@@ -52,14 +52,15 @@ function VerifyToken(req, res, next) {
         }else{
           res.status(404).end()
         }
-  
       })
     })
   })
 
+
  /* Validacion del SplashScreen */
   router.get('/verify', VerifyToken, (req,res)=>{})
 
+  /* Login */
   router.post('/login', (req,res) =>{
     mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
       if(err) return next(createError(500))
@@ -92,6 +93,8 @@ function VerifyToken(req, res, next) {
     })
   })
 
+
+  /* Obtener Usuario por parametro Username */
   router.get('/:username', function(req, res,next) {
     var parametro = req.params.username
    // req.params.password = crypto (req.params.password);
@@ -110,42 +113,23 @@ function VerifyToken(req, res, next) {
     })
   })
 
-  //Obtencion de las conversaciones relacionadas con el Usuario Emisor.
-  router.get('/mensajes', function(req, res,next) {
+
+  /*Se Obtienen todas las conversaciones de la base de Datos*/
+  router.get('/all/conversations', function(req, res, next) {
     mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
       if(err) return next(createError(500))
       const database = client.db(dbName)
-      const collection = database.collection('Conversaciones')
-      collection.findOne({Emisor: req.params.Emisor, Receptor: req.params.Receptor},function(err,doc){
-        if(err) return next(createError(500))
-        if(doc){
-          res.status(200).json(doc)
-        }else{
-          res.status(404).end()
-        }
+      const collection = database.collection('Mensajes')
+      collection.find({}).toArray((err, docs)=>{
+        if(err) return next(CreateError(500))
+        return res.status(200).json(docs)
       })
     })
   })
 
 
-  //Actualizar Conversacion 
-  router.put('/mensajes', function(req, res,next) {
-    mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
-      if(err) return next(createError(500))
-      const database = client.db(dbName)
-      const collection = database.collection('Conversaciones')
-      collection.updateOne(req.body,function(err,doc){
-        if(err) return next(createError(500))
-        if(doc){
-          res.status(200).json(doc)
-        }else{
-          res.status(404).end()
-        }
-      })
-    })
-  })
 
-  /*Para Registro de Usuarios a la Base de Datos*/
+  /* Para Registro de Usuarios a la Base de Datos */
  router.post('/registro', function(req,res,next){
     mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
       if(err) return next(createError(500))
@@ -168,6 +152,40 @@ function VerifyToken(req, res, next) {
     })
   })
 
+/* Actualizar Conversacion */ 
+router.put('/mensajes', function(req, res, next) {
+  mongoClient.connect(url, { useNewUrlParser: true}, (err, client) => {
+      if(err) return next(createError(500))
+      const database = client.db(dbName)
+      const collection = database.collection('Mensajes')
+      collection.updateOne({Receptor:req.body.Receptor},{$set: req.body},{upsert: true},err => {
+          if(err) return next(createError(500))
+          res.status(201).end()
+      })
+  })
+});
+
+/* Crear Conversacion */
+ router.post('/conversacion', function(req,res,next){
+  mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
+    if(err) return next(createError(500))
+    const database = client.db(dbName)
+    const collection = database.collection('Mensajes')
+    collection.findOne({Emisor:req.body.Emisor, Receptor: req.body.Receptor},function(err,doc){
+      if(err) return next(createError(500))
+      if(doc){
+        res.status(200).json(req.body)
+      }else{
+        collection.insertOne(req.body,err=>{
+          if(err) return next(createError(500))
+          res.status(200).json(req.body)
+        })
+      }
+    })
+  })
+})
+
+
   /*Para Validar Correo*/
   router.post('/email', function(req,res,next){
     mongoClient.connect(url,{ useNewUrlParser: true},(err,client)=>{
@@ -185,19 +203,5 @@ function VerifyToken(req, res, next) {
     })
   })
   
-
-
-var UserList = [
-  {
-      "id": 1,
-      "name": 'Josue',
-      "lastname": 'Higueros',
-      "birthday": '10/12/1997',
-      "phone": '34500209',
-      "email":  'davidhigueros@gmail.com',
-      "username": 'Josh',
-      "password": 'Hola1234'
-  }
-]
 
 module.exports = router;
